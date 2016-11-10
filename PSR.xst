@@ -2,7 +2,7 @@ set -tmpdir "C:/Users/Propietario_/Arquitectura-de-Computadores/ProcesadorMonoci
 set -xsthdpdir "C:/Users/Propietario_/Arquitectura-de-Computadores/ProcesadorMonociclo4/xst"
 run -compileonly yes
 -p xc7a100t-3-csg324
--top ADD
+-top PSR
 -opt_mode Speed
 -opt_level 1
 -power NO
@@ -47,4 +47,4 @@ run -compileonly yes
 -iob Auto
 -equivalent_register_removal YES
 -slice_utilization_ratio_maxmargin 5
--ifn ADD.prj
+-ifn PSR.prj

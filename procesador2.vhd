@@ -82,11 +82,11 @@ architecture arq_procesador2 of procesador2 is
 
 COMPONENT RF
 	PORT(
-		RS1 : IN std_logic_vector(4 downto 0);
-		RS2 : IN std_logic_vector(4 downto 0);
+		RS1 : IN std_logic_vector(5 downto 0);
+		RS2 : IN std_logic_vector(5 downto 0);
 		DW : IN std_logic_vector(31 downto 0);
 		RST : IN std_logic;
-		RD : IN std_logic_vector(4 downto 0);          
+		RD : IN std_logic_vector(5 downto 0);          
 		CRS1 : OUT std_logic_vector(31 downto 0);
 		CRS2 : OUT std_logic_vector(31 downto 0)
 		);
@@ -120,12 +120,14 @@ COMPONENT RF
 	
 	END COMPONENT;
 	
-	COMPONENT PSR
+		COMPONENT PSR
 	PORT(
 		ENTRADA_NZVC : IN std_logic_vector(3 downto 0);
 		RST : IN std_logic;
-		CLK : IN std_logic;          
-		CARRY : OUT std_logic
+		CLK : IN std_logic;
+		ENTRADA_NCWP : IN std_logic;          
+		CARRY : OUT std_logic;
+		SALIDA_CWP : OUT std_logic
 		);
 	END COMPONENT;
 	
@@ -140,11 +142,26 @@ COMPONENT RF
 		);
 	END COMPONENT;
 
+	COMPONENT WINDOWS_MANAGER
+	PORT(
+		RS1 : IN std_logic_vector(4 downto 0);
+		RS2 : IN std_logic_vector(4 downto 0);
+		RD : IN std_logic_vector(4 downto 0);
+		OP : IN std_logic_vector(1 downto 0);
+		OP3 : IN std_logic_vector(5 downto 0);
+		CWP : IN std_logic;          
+		SALIDA_NRS1 : OUT std_logic_vector(5 downto 0);
+		SALIDA_NRS2 : OUT std_logic_vector(5 downto 0);
+		SALIDA_NRD : OUT std_logic_vector(5 downto 0);
+		SALIDA_NCWP : OUT std_logic
+		);
+	END COMPONENT;
 
 
-signal ADD_NPC, NPC_PC, PC_IM, IM_UC_RF_SEU, ALU_RF, CRS1_ALU,CRS2_MUX, MUX_ALU, SEU_MUX , SALIDA_MUX_CRS2,SALIDA_ALU :  STD_LOGIC_VECTOR (31 downto 0);
-signal UC_ALU , SALIDA_UC : STD_LOGIC_VECTOR (5 downto 0);
-signal CARRY : STD_LOGIC;
+
+signal ADD_NPC, NPC_PC, PC_IM, IM_WM_UC, ALU_RF, CRS1_ALU,CRS2_MUX, MUX_ALU, SEU_MUX , SALIDA_MUX_CRS2,SALIDA_ALU :  STD_LOGIC_VECTOR (31 downto 0);
+signal UC_ALU , SALIDA_UC, RS1_SALIDA_WM_RF,RS2_SALIDA_WM_RF, RD_SALIDA_WM_RF: STD_LOGIC_VECTOR (5 downto 0);
+signal CARRY , NCWP_PSR_WM, CWP_PSR_WM: STD_LOGIC;
 signal ENTRADA_NZVC , SALIDA_NZVC : STD_LOGIC_VECTOR (3 downto 0);
 
 begin
@@ -173,34 +190,37 @@ begin
 	Inst_IM: IM PORT MAP(
 		ENTRADA_PC => PC_IM,
 		RST => RST,
-		SALIDA_IM => IM_UC_RF_SEU
+		SALIDA_IM => IM_WM_UC
 	);
 
 	Inst_UC: UC PORT MAP(
-		ENTRADA_OP => IM_UC_RF_SEU(31 downto 30),
-		ENTRADA_OP3 => IM_UC_RF_SEU(24 downto 19),
+		ENTRADA_OP => IM_WM_UC (31 downto 30),
+		ENTRADA_OP3 => IM_WM_UC (24 downto 19),
 		SALIDA_UC => UC_ALU
 	);
 
 	Inst_RF: RF PORT MAP(
-		RS1 => IM_UC_RF_SEU (18 downto 14) ,
-		RS2 => IM_UC_RF_SEU (4 downto 0),
+		RS1 => RS1_SALIDA_WM_RF ,
+		RS2 => RS2_SALIDA_WM_RF,
 		DW => ALU_RF,
 		RST => RST ,
-		RD => IM_UC_RF_SEU (29 downto 25),
+		RD => RD_SALIDA_WM_RF,
 		CRS1 => CRS1_ALU,
 		CRS2 => CRS2_MUX
 	);
+	
+
+
 
 Inst_MUX: MUX PORT MAP(
 		ENTRADA_CRS2 => CRS2_MUX ,
 		ENTRADA_SEU => SEU_MUX,
-		i => IM_UC_RF_SEU (13),
+		i => IM_WM_UC (13),
 		SALIDA_MUX => MUX_ALU
 	);
 
 	Inst_SEU: SEU PORT MAP(
-		ENTRADA_INMEDIATO => IM_UC_RF_SEU (12 downto 0),
+		ENTRADA_INMEDIATO => IM_WM_UC (12 downto 0),
 		SALIDA_SEU => SEU_MUX
 	);
 
@@ -215,12 +235,16 @@ Inst_MUX: MUX PORT MAP(
 	);
 
 
-Inst_PSR: PSR PORT MAP(
+	
+	Inst_PSR: PSR PORT MAP(
 		ENTRADA_NZVC => ENTRADA_NZVC,
-		RST => RST,
-		CLK => CLK ,
-		CARRY => CARRY
+		RST => RST ,
+		CLK => CLK,
+		CARRY => CARRY,
+		ENTRADA_NCWP => NCWP_PSR_WM,
+		SALIDA_CWP => CWP_PSR_WM
 	);
+
 
 Inst_PSR_MODIFIER: PSR_MODIFIER PORT MAP(
 		RST => RST ,
@@ -230,6 +254,21 @@ Inst_PSR_MODIFIER: PSR_MODIFIER PORT MAP(
 		SALIDA_ALU => ALU_RF,
 		SALIDA_NZVC => SALIDA_NZVC
 	);
+
+
+		Inst_WINDOWS_MANAGER: WINDOWS_MANAGER PORT MAP(
+		RS1 => IM_WM_UC (18 downto 14) ,
+		RS2 => IM_WM_UC (4 downto 0),
+		RD => IM_WM_UC (29 downto 25),
+		OP => IM_WM_UC (31 downto 30),
+		OP3 => IM_WM_UC (24 downto 19),
+		CWP => CWP_PSR_WM,
+		SALIDA_NRS1 => RS1_SALIDA_WM_RF,
+		SALIDA_NRS2 => RS2_SALIDA_WM_RF ,
+		SALIDA_NRD => RD_SALIDA_WM_RF ,
+		SALIDA_NCWP => NCWP_PSR_WM
+	);
+
 
 
 

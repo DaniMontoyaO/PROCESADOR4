@@ -33,20 +33,29 @@ entity PSR is
     Port ( ENTRADA_NZVC : in  STD_LOGIC_VECTOR (3 downto 0);
            RST : in  STD_LOGIC;
            CLK : in  STD_LOGIC;
-           CARRY : out  STD_LOGIC);
+           CARRY : out  STD_LOGIC;
+			  ENTRADA_NCWP : in  STD_LOGIC;
+			  SALIDA_CWP : out  STD_LOGIC);
 end PSR;
 
 architecture Behavioral of PSR is
 
 begin
-	process(ENTRADA_NZVC,RST,CLK)
+	process(ENTRADA_NZVC,RST,CLK,ENTRADA_NCWP)
 	begin
 		if RST='1' then
+			SALIDA_CWP <= '0';
 			CARRY <= '0';
 		else
 			if rising_edge(CLK) then
+				if  ENTRADA_NCWP = '1' then
+					 SALIDA_CWP <= '1';
+				else
+					SALIDA_CWP <= '0';
+				end if;
 				CARRY <= ENTRADA_NZVC(0);
 			end if;
+			
 		end if;
 	end process;
 
